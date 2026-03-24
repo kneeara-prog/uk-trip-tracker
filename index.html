@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>UK Trip Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --nl: #AE1C28; --uk: #012169;
+    --cream: #FAF7F2; --warm: #F0EAE0;
+    --text: #1a1a1a; --muted: #888;
+    --done: #6db07f; --shadow: 0 1px 12px rgba(0,0,0,0.07);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+  #name-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 100vh; padding: 32px 24px; text-align: center;
+  }
+  .ns-flags { font-size: 36px; letter-spacing: 6px; margin-bottom: 16px; }
+  .ns-title { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--uk); margin-bottom: 6px; }
+  .ns-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; font-weight: 300; }
+  .ns-card { background: white; border-radius: 16px; padding: 24px; box-shadow: var(--shadow); max-width: 340px; width: 100%; }
+  .ns-card label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; text-align: left; }
+  .ns-card input {
+    width: 100%; padding: 13px 15px; border: 1.5px solid var(--warm);
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+    color: var(--text); background: var(--cream); outline: none; margin-bottom: 14px;
+    -webkit-appearance: none;
+  }
+  .ns-card input:focus { border-color: var(--uk); }
+  .ns-btn {
+    width: 100%; padding: 13px; background: var(--uk); color: white; border: none;
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+    font-weight: 500; cursor: pointer; transition: opacity 0.2s;
+  }
+  .ns-btn:hover { opacity: 0.88; }
+  .ns-btn:active { transform: scale(0.98); }
+
+  #app { display: none; }
+
+  header { background: var(--uk); padding: 20px 20px 16px; text-align: center; position: relative; overflow: hidden; }
+  header::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.025) 8px, rgba(255,255,255,0.025) 9px); }
+  .flag-strip { font-size: 22px; letter-spacing: 5px; margin-bottom: 6px; position: relative; }
+  header h1 { font-family: 'Playfair Display', serif; font-size: 22px; color: white; position: relative; }
+  header p { color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; font-weight: 300; position: relative; }
+  .header-meta { display: flex; align-items: center; justify-content: space-between; position: relative; margin-top: 10px; }
+  .user-chip { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); font-size: 12px; padding: 4px 10px; border-radius: 20px; }
+  .sync-pill { font-size: 11px; padding: 3px 10px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
+  .sync-pill.ok      { background: rgba(109,176,127,0.25); color: #a0e8b0; }
+  .sync-pill.saving  { background: rgba(255,220,100,0.2);  color: #ffd97a; }
+  .sync-pill.err     { background: rgba(255,120,120,0.2);  color: #ffaaaa; }
+  .sync-pill.loading { background: rgba(180,200,255,0.2);  color: #c0ccff; }
+  .spin { display: inline-block; width: 9px; height: 9px; border: 1.5px solid rgba(255,255,255,0.25); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tabs { display: flex; gap: 8px; max-width: 600px; margin: 14px auto 0; padding: 0 14px; }
+  .tab {
+    flex: 1; padding: 11px 10px; border: 2px solid transparent; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--warm); color: var(--text);
+  }
+  .tab.bring.active { background: var(--nl); color: white; border-color: var(--nl); }
+  .tab.get.active   { background: var(--uk); color: white; border-color: var(--uk); }
+  .badge { background: rgba(255,255,255,0.25); border-radius: 20px; padding: 1px 7px; font-size: 11px; }
+  .tab:not(.active) .badge { background: rgba(0,0,0,0.08); color: var(--muted); }
+
+  .panel { display: none; max-width: 600px; margin: 0 auto; padding: 14px 14px 80px; }
+  .panel.active { display: block; }
+
+  .add-box { background: white; border-radius: 12px; padding: 12px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .add-row { display: flex; gap: 7px; margin-bottom: 7px; }
+  .add-row:last-child { margin-bottom: 0; }
+
+  input[type=text] {
+    flex: 1; padding: 11px 13px; border: 1.5px solid var(--warm); border-radius: 9px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    background: var(--cream); color: var(--text); outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type=text]:focus { border-color: var(--uk); }
+  #panel-bring input[type=text]:focus { border-color: var(--nl); }
+
+  select {
+    padding: 11px 8px; border: 1.5px solid var(--warm); border-radius: 9px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; background: var(--cream);
+    color: var(--text); cursor: pointer; outline: none; -webkit-appearance: none;
+  }
+  .add-btn {
+    padding: 11px 16px; border: none; border-radius: 9px; font-size: 20px;
+    cursor: pointer; color: white; font-weight: 300; transition: transform 0.1s; line-height: 1;
+  }
+  .add-btn:active { transform: scale(0.94); }
+  #panel-bring .add-btn { background: var(--nl); }
+  #panel-get   .add-btn { background: var(--uk); }
+  .for-input { font-size: 13px; padding: 9px 13px; }
+
+  .prog-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .prog-label { font-size: 11px; color: var(--muted); }
+  .prog-wrap { background: var(--warm); border-radius: 20px; height: 5px; margin-bottom: 12px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+  #panel-bring .prog-fill { background: var(--nl); }
+  #panel-get   .prog-fill { background: var(--uk); }
+
+  .item-list { display: flex; flex-direction: column; gap: 7px; }
+  .item {
+    display: flex; align-items: flex-start; gap: 9px;
+    background: white; border-radius: 11px; padding: 11px 12px; box-shadow: var(--shadow);
+  }
+  .item.done { opacity: 0.5; }
+  .item.done .item-text { text-decoration: line-through; color: var(--muted); }
+  .chk {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ddd; flex-shrink: 0;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; transition: all 0.2s; margin-top: 1px;
+  }
+  .item.done .chk { background: var(--done); border-color: var(--done); color: white; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-main { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px; }
+  .item-text { font-size: 13px; line-height: 1.4; word-break: break-word; }
+  .item-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pill { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .for-pill { background: #fff8e6; color: #8a6200; }
+  .who-pill { background: #eef4ff; color: #2a4a9e; }
+  .del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 18px; padding: 2px; line-height: 1; flex-shrink: 0; }
+  .del:hover { color: #e55; }
+  .sec-lbl { font-size: 10px; font-weight: 500; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); margin: 14px 0 7px; }
+  .empty { text-align: center; padding: 28px 16px; color: var(--muted); font-size: 13px; font-style: italic; }
+
+  .cat-Clothing   { background: #fde8ec; color: #c0294a; }
+  .cat-Food       { background: #fef3e2; color: #b86b00; }
+  .cat-Gifts      { background: #edf7ee; color: #2e7d32; }
+  .cat-Documents  { background: #e8f0fe; color: #1a56cc; }
+  .cat-Toiletries { background: #f3e8fd; color: #7b1fa2; }
+  .cat-Shopping   { background: #e0f7fa; color: #006064; }
+  .cat-Misc       { background: #f0f0f0; color: #555; }
+</style>
+</head>
+<body>
+
+<div id="name-screen">
+  <div class="ns-flags">🇳🇱 ✈ 🇬🇧</div>
+  <h1 class="ns-title">UK Trip Tracker</h1>
+  <p class="ns-sub">Niara's trip · 29 May – 5 June 2026</p>
+  <div class="ns-card">
+    <label for="name-input">What's your name?</label>
+    <input type="text" id="name-input" placeholder="e.g. Mum, Sarah, James…" onkeydown="if(event.key==='Enter')startApp()">
+    <button class="ns-btn" onclick="startApp()">Open the tracker →</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="flag-strip">🇳🇱 ✈ 🇬🇧</div>
+    <h1>UK Trip Tracker</h1>
+    <p>Niara's trip · 29 May – 5 June 2026</p>
+    <div class="header-meta">
+      <div class="user-chip" id="user-chip">👤</div>
+      <div class="sync-pill loading" id="sync-pill"><span class="spin"></span> Connecting…</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab bring active" onclick="switchTab('bring')">
+      🧳 Bring from NL <span class="badge" id="badge-bring">0</span>
+    </button>
+    <button class="tab get" onclick="switchTab('get')">
+      🛍️ Get in UK <span class="badge" id="badge-get">0</span>
+    </button>
+  </div>
+
+  <div class="panel active" id="panel-bring">
+    <div class="add-box">
+      <div class="add-row">
+        <input type="text" id="input-bring" placeholder="Add something to bring…" onkeydown="if(event.key==='Enter')addItem('bring')">
+        <select id="cat-bring">
+          <option>Clothing</option><option>Toiletries</option><option>Food</option>
+          <option>Gifts</option><option>Documents</option><option>Misc</option>
+        </select>
+        <button class="add-btn" onclick="addItem('bring')">+</button>
+      </div>
+      <div class="add-row">
+        <input type="text" class="for-input" id="for-bring" placeholder="👤 For someone specific? (optional)">
+      </div>
+    </div>
+    <div class="prog-row"><span class="prog-label" id="prog-label-bring"></span></div>
+    <div class="prog-wrap"><div class="prog-fill" id="prog-bring" style="width:0%"></div></div>
+    <div id="list-bring-active" class="item-list"></div>
+    <div id="label-done-bring"></div>
+    <div id="list-bring-done" class="item-list"></div>
+    <div id="empty-bring" class="empty">Nothing to bring yet — add the first item!</div>
+  </div>
+
+  <div class="panel" id="panel-get">
+    <div class="add-box">
+      <div class="add-row">
+        <input type="text" id="input-get" placeholder="Add something to get in the UK…" onkeydown="if(event.key==='Enter')addItem('get')">
+        <select id="cat-get">
+          <option>Shopping</option><option>Food</option><option>Clothing</option>
+          <option>Toiletries</option><option>Gifts</option><option>Misc</option>
+        </select>
+        <button class="add-btn" onclick="addItem('get')">+</button>
+      </div>
+      <div class="add-row">
+        <input type="text" class="for-input" id="for-get" placeholder="👤 For someone specific? (optional)">
+      </div>
+    </div>
+    <div class="prog-row"><span class="prog-label" id="prog-label-get"></span></div>
+    <div class="prog-wrap"><div class="prog-fill" id="prog-get" style="width:0%"></div></div>
+    <div id="list-get-active" class="item-list"></div>
+    <div id="label-done-get"></div>
+    <div id="list-get-done" class="item-list"></div>
+    <div id="empty-get" class="empty">Nothing on the UK list yet!</div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPKRy-zsk1mjTLuQ2-0vI814ap_s560fU",
+    authDomain: "uk-trip-tracker.firebaseapp.com",
+    databaseURL: "https://uk-trip-tracker-default-rtdb.firebaseio.com",
+    projectId: "uk-trip-tracker",
+    storageBucket: "uk-trip-tracker.firebasestorage.app",
+    messagingSenderId: "333469721263",
+    appId: "1:333469721263:web:eac4629c1d3157b1732a5a"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getDatabase(fbApp);
+  const dbRef = ref(db, 'tracker');
+
+  let D = { bring: [], get: [] };
+  let myName = '';
+  let saveTimer = null;
+  let isLoaded = false;
+
+  function setSyncPill(msg, type) {
+    const el = document.getElementById('sync-pill');
+    el.className = 'sync-pill ' + type;
+    el.innerHTML = (type === 'saving' || type === 'loading')
+      ? '<span class="spin"></span> ' + msg : msg;
+  }
+
+  // ── NAME SCREEN ───────────────────────────────────────────────────
+  window.startApp = function() {
+    const inp = document.getElementById('name-input');
+    const name = inp.value.trim();
+    if (!name) { inp.focus(); return; }
+    myName = name;
+    localStorage.setItem('uk_tracker_name', name);
+    document.getElementById('name-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-chip').textContent = '👤 ' + name;
+    startListening();
+  };
+
+  const savedName = localStorage.getItem('uk_tracker_name');
+  if (savedName) document.getElementById('name-input').value = savedName;
+
+  // ── FIREBASE REAL-TIME LISTENER ───────────────────────────────────
+  function startListening() {
+    setSyncPill('Connecting…', 'loading');
+    onValue(dbRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        D = val;
+      } else {
+        D = { bring: [], get: [] };
+      }
+      isLoaded = true;
+      setSyncPill('Live ✓', 'ok');
+      render('bring');
+      render('get');
+    }, (error) => {
+      setSyncPill('Connection error', 'err');
+      console.error(error);
+    });
+  }
+
+  // ── SAVE TO FIREBASE ──────────────────────────────────────────────
+  function scheduleSave() {
+    setSyncPill('Saving…', 'saving');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try {
+        await set(dbRef, D);
+        setSyncPill('Saved ✓', 'ok');
+      } catch(e) {
+        setSyncPill('Save failed', 'err');
+        console.error(e);
+      }
+    }, 500);
+  }
+
+  // ── APP LOGIC ─────────────────────────────────────────────────────
+  window.switchTab = function(t) {
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+    document.querySelector('.tab.' + t).classList.add('active');
+    document.getElementById('panel-' + t).classList.add('active');
+  };
+
+  window.addItem = function(list) {
+    if (!isLoaded) return;
+    const inp = document.getElementById('input-' + list);
+    const cat = document.getElementById('cat-' + list).value;
+    const fin = document.getElementById('for-' + list);
+    const text = inp.value.trim();
+    if (!text) return;
+    if (!D[list]) D[list] = [];
+    D[list].push({
+      id: Date.now(),
+      text, cat,
+      forName: fin.value.trim(),
+      addedBy: myName,
+      done: false
+    });
+    inp.value = ''; fin.value = '';
+    inp.focus();
+    scheduleSave();
+    render(list);
+  };
+
+  window.toggle = function(list, id) {
+    const it = D[list].find(i => i.id === id);
+    if (it) it.done = !it.done;
+    scheduleSave();
+    render(list);
+  };
+
+  window.remove = function(list, id) {
+    D[list] = D[list].filter(i => i.id !== id);
+    scheduleSave();
+    render(list);
+  };
+
+  function render(list) {
+    const items = D[list] || [];
+    const active = items.filter(i => !i.done);
+    const done   = items.filter(i => i.done);
+    const total  = items.length;
+    const pct    = total === 0 ? 0 : Math.round((done.length / total) * 100);
+
+    document.getElementById('prog-' + list).style.width = pct + '%';
+    document.getElementById('prog-label-' + list).textContent = total ? done.length + ' of ' + total + ' done' : '';
+    document.getElementById('badge-' + list).textContent = active.length || total;
+    document.getElementById('empty-' + list).style.display = total === 0 ? 'block' : 'none';
+    document.getElementById('list-' + list + '-active').innerHTML = active.map(it => itemHTML(list, it)).join('');
+
+    const dl = document.getElementById('label-done-' + list);
+    const de = document.getElementById('list-' + list + '-done');
+    if (done.length) {
+      dl.innerHTML = '<div class="sec-lbl">Done ✓</div>';
+      de.innerHTML = done.map(it => itemHTML(list, it)).join('');
+    } else { dl.innerHTML = ''; de.innerHTML = ''; }
+  }
+
+  function itemHTML(list, it) {
+    const fp = it.forName ? '<span class="pill for-pill">👤 ' + esc(it.forName) + '</span>' : '';
+    const ap = it.addedBy ? '<span class="pill who-pill">+ ' + esc(it.addedBy) + '</span>' : '';
+    return '<div class="item' + (it.done ? ' done' : '') + '">' +
+      '<div class="chk" onclick="toggle(\'' + list + '\',' + it.id + ')">' + (it.done ? '✓' : '') + '</div>' +
+      '<div class="item-body">' +
+        '<div class="item-main">' +
+          '<span class="pill cat-' + it.cat + '">' + it.cat + '</span>' + fp +
+          '<span class="item-text">' + esc(it.text) + '</span>' +
+        '</div>' +
+        '<div class="item-meta">' + ap + '</div>' +
+      '</div>' +
+      '<button class="del" onclick="remove(\'' + list + '\',' + it.id + ')">×</button></div>';
+  }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
